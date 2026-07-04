@@ -206,8 +206,10 @@ highlighted when the tournament completes.
 - No optimistic concurrency: the organiser is the sole writer, so last-write-wins on a
   tournament's KV key is acceptable.
 - Passphrase auth is not hardened (no rate limiting/lockout); adequate for a private PoC.
-- No automated tests (per request); a few pure functions — `computeMatchWinner`, seeding
-  order, next-round generation — are structured to be trivially testable later.
+- Developed test-first (TDD). Pure logic (`computeMatchWinner`, seeding order, next-round
+  generation, factory/validation) has unit tests; API routes have integration tests
+  (validation, auth, storage via the local fallback) with Vitest. Svelte UI is verified via
+  manual dev-server steps rather than component tests.
 
 ## 11. Styling & language
 
