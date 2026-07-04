@@ -12,12 +12,13 @@
 
   // Mobile: show one round at a time, defaulting to the current round.
   // Only re-focus when the number of rounds actually changes (a new round
-  // was generated) — not on every poll of the same round count, which
+  // was generated) or the tournament itself changes (navigation) — not on
+  // every poll of the same tournament with the same round count, which
   // would otherwise discard a spectator's manual ‹/› navigation.
   let focused = $state(currentRoundIndex(tournament.rounds));
-  let roundCount = $derived(tournament.rounds.length);
+  let roundKey = $derived(`${tournament.id}:${tournament.rounds.length}`);
   $effect(() => {
-    roundCount; // establish the dependency
+    roundKey; // establish the dependency (id changes on navigation, count changes on new round)
     focused = currentRoundIndex(untrack(() => tournament.rounds));
   });
 
