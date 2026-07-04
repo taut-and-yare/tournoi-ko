@@ -8,6 +8,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
   requireAdmin(request);
   const t = await getTournament(params.id!);
   if (!t) throw error(404, 'Tournoi introuvable.');
+  if (!t.players.find((p) => p.id === params.pid)) throw error(404, 'Joueur introuvable.');
   const body = await request.json();
   const players = t.players.map((p) => {
     if (p.id !== params.pid) return p;
