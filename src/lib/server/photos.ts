@@ -16,8 +16,7 @@ export async function savePlayerPhoto(tournamentId: string, playerId: string, fi
   if (useBlob) {
     const blob = await put(`tournaments/${tournamentId}/players/${playerId}.${ext}`, file, {
       access: 'public',
-      addRandomSuffix: false,
-      allowOverwrite: true
+      addRandomSuffix: false
     });
     return blob.url;
   }
