@@ -45,7 +45,8 @@ Tournament {
   organiser: string
   firstRoundByElo: boolean
   status: 'registration' | 'active' | 'complete'
-  size: number             // bracket size, power of 2 (2/4/8/16)
+  participantCount: number // declared at creation; must be a power of 2 (2/4/8/16…);
+                           // registration must reach exactly this count
   players: Player[]
   rounds: Round[]
   thirdPlaceMatch?: Match   // optional, semifinal losers
@@ -70,7 +71,7 @@ Round {
 
 Match {
   id: string
-  playerAId: string | null // null = TBD (winner not yet decided) or bye
+  playerAId: string | null // null = TBD (feeding match winner not yet decided)
   playerBId: string | null
   games: Game[]
   winnerId: string | null
@@ -106,8 +107,9 @@ tier's inputs.
 
 ## 6. Seeding & bracket
 
-One fixed single-elimination bracket of size N (a power of 2). Winners advance along fixed
-tree edges — there is **no re-pairing** after round 1.
+One fixed single-elimination bracket of size N = `participantCount` (validated as a power of
+two at creation, so the tree divides evenly with no byes). Winners advance along fixed tree
+edges — there is **no re-pairing** after round 1.
 
 - **`firstRoundByElo = true`** → standard **seeded** placement, keeping top seeds apart and
   pairing strong–weak. Slot order is the classic seeding sequence:
@@ -144,25 +146,32 @@ highlighted when the tournament completes.
   3rd-place toggle, reset.
 
 **API routes** (write routes require `x-admin-secret`):
-- `GET  /api/tournament` — public; returns the JSON document.
-- `POST /api/tournament` — create/replace the tournament (admin).
-- `POST /api/players` — add a player (admin).
-- `POST /api/upload` — upload a photo to Vercel Blob, returns the URL (admin).
-- `POST /api/rounds/generate` — build round 0 from registration, or materialize the next
+- `GET   /api/tournament` — public; returns the JSON document.
+- `POST  /api/tournament` — create the tournament (admin); validates `participantCount` is a
+  power of two.
+- `PATCH /api/tournament` — update editable tournament fields (name, dates, organiser,
+  firstRoundByElo, participantCount) (admin).
+- `POST  /api/players` — add a player (admin).
+- `PATCH /api/players/:id` — update a player's fields (name, ELO, lichess username) (admin).
+- `POST  /api/players/:id/photo` — multipart upload of the player's photo to Vercel Blob at a
+  deterministic path (`players/{id}`); overwrites any previous photo and sets that player's
+  `photoUrl` directly. Returns the updated player (admin).
+- `POST  /api/rounds/generate` — build round 0 from registration, or materialize the next
   round from winners (admin).
-- `POST /api/matches/:id/games` — record/update game results for a match; recomputes winner
+- `POST  /api/matches/:id/games` — record/update game results for a match; recomputes winner
   (admin).
-- `POST /api/thirdplace` — create the 3rd-place match from semifinal losers (admin).
-- `POST /api/tournament/reset` — clear state (admin).
+- `POST  /api/thirdplace` — create the 3rd-place match from semifinal losers (admin).
+- `POST  /api/tournament/reset` — clear state (admin).
 
 ## 9. Registration rules
 
-- Players are added one at a time (name, ELO, lichess username, photo).
-- Photos are uploaded to Blob on add; oversized images may be downscaled client-side before
-  upload to stay within free-tier limits.
-- "Start tournament" is disabled unless the player count is a power of two (2/4/8/16). On
-  start, `size` is set, round 0 is generated via the seeding/shuffle rule, and `status`
-  becomes `active`.
+- Players are added one at a time (name, ELO, lichess username). A player exists first, then
+  their photo is uploaded via `POST /api/players/:id/photo`, which links it to the player.
+  Oversized images may be downscaled client-side before upload to stay within free-tier limits.
+- Both the tournament and existing players remain editable during registration via the PATCH
+  endpoints.
+- "Start tournament" is disabled unless the registered player count equals `participantCount`.
+  On start, round 0 is generated via the seeding/shuffle rule and `status` becomes `active`.
 
 ## 10. Non-goals / accepted PoC limitations
 
