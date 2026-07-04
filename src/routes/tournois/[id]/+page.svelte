@@ -1,14 +1,20 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { admin } from '$lib/client/admin.svelte';
   import { api } from '$lib/client/api';
   import { t } from '$lib/i18n/fr';
   import UnlockButton from '$lib/components/UnlockButton.svelte';
   import BracketView from '$lib/components/BracketView.svelte';
-  import type { Tournament } from '$lib/types';
+  import PlayerRegistration from '$lib/components/PlayerRegistration.svelte';
+  import ResultEntry from '$lib/components/ResultEntry.svelte';
+  import { generateNextRound, buildThirdPlaceMatch } from '$lib/tournament/rounds';
+  import type { Match, Tournament } from '$lib/types';
 
   let { data }: { data: { tournament: Tournament } } = $props();
   let tournament = $state<Tournament>(data.tournament);
+  let selected = $state<Match | null>(null);
+  let error = $state('');
 
   // Resync when the loader hands us a different tournament (e.g. in-app
   // navigation between /tournois/A and /tournois/B reuses this component
@@ -18,6 +24,10 @@
       tournament = data.tournament;
     }
   });
+
+  function setTournament(next: Tournament) {
+    tournament = next;
+  }
 
   async function refresh() {
     try {
@@ -42,6 +52,40 @@
   const champion = $derived(
     tournament.championId ? tournament.players.find((p) => p.id === tournament.championId) : undefined
   );
+  const canAdvance = $derived(
+    tournament.status === 'active' && generateNextRound(tournament.rounds) !== null
+  );
+  const canThirdPlace = $derived(
+    tournament.status !== 'registration' &&
+      !tournament.thirdPlaceMatch &&
+      buildThirdPlaceMatch(tournament.rounds) !== null
+  );
+
+  async function advance() {
+    error = '';
+    try {
+      tournament = await api.generate(tournament.id);
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  async function addThirdPlace() {
+    error = '';
+    try {
+      tournament = await api.createThirdPlace(tournament.id);
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  async function removeTournament() {
+    if (!confirm(`${t.delete} « ${tournament.name} » ?`)) return;
+    await api.remove(tournament.id);
+    goto('/tournois');
+  }
+
+  function onMatchClick(m: Match) {
+    if (admin.isUnlocked && m.playerAId && m.playerBId) selected = m;
+  }
 </script>
 
 <main class="mx-auto max-w-5xl px-4 py-6">
@@ -62,11 +106,35 @@
     </div>
   {/if}
 
-  <div class="mt-6">
-    <BracketView {tournament} />
-  </div>
+  {#if admin.isUnlocked && tournament.status === 'registration'}
+    <div class="mt-6"><PlayerRegistration {tournament} onChange={setTournament} /></div>
+  {/if}
+
+  {#if tournament.rounds.length > 0}
+    <div class="mt-6">
+      <BracketView {tournament} onMatchClick={admin.isUnlocked ? onMatchClick : undefined} />
+    </div>
+  {/if}
 
   {#if admin.isUnlocked}
-    <p class="mt-8 text-sm text-slate-400">{t.organiserModeNotice}</p>
+    <div class="mt-6 flex flex-wrap gap-2">
+      {#if canAdvance}
+        <button onclick={advance} class="rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">{t.advanceRound}</button>
+      {/if}
+      {#if canThirdPlace}
+        <button onclick={addThirdPlace} class="rounded bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700">{t.thirdPlace}</button>
+      {/if}
+      <button onclick={removeTournament} class="rounded border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50">{t.delete}</button>
+    </div>
+    {#if error}<p class="mt-2 text-sm text-red-600">{error}</p>{/if}
   {/if}
 </main>
+
+{#if selected}
+  <ResultEntry
+    {tournament}
+    match={selected}
+    onChange={setTournament}
+    onClose={() => (selected = null)}
+  />
+{/if}
