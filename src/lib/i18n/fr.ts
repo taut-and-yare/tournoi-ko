@@ -13,7 +13,7 @@ export function roundName(playersInRound: number): string {
 
 export const t = {
   appTitle: 'Tournoi KO',
-  homeIntro: 'Créez et suivez vos tournois d\'échecs à élimination directe.',
+  homeIntro: 'Créez et suivez vos tournois d’échecs à élimination directe.',
   seeTournaments: 'Voir les tournois',
   tournamentsTitle: 'Tournois',
   addTournament: 'Ajouter un tournoi',
