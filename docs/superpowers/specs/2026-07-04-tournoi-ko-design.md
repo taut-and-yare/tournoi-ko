@@ -5,21 +5,26 @@
 
 ## 1. Purpose & scope
 
-A small website to run and **visualize a single knockout (single-elimination) chess tournament**.
-One organiser creates the tournament and manages it; spectators open a URL and watch a live
-bracket. Built as a quick PoC, deployed to Vercel. Only ever one tournament exists at a time.
+A small website to run and **visualize knockout (single-elimination) chess tournaments**. An
+organiser creates and manages tournaments; spectators open the site and watch live brackets.
+Built as a quick PoC, deployed to Vercel. The app holds a small list of tournaments, but is
+still expected to run just a few at a time.
 
-Out of scope (YAGNI): multiple concurrent tournaments, user accounts, real-time websockets,
-mobile app, historical archive.
+All user-facing text is in **French** (see §11). This spec and the code are in English.
+
+Out of scope (YAGNI): user accounts, real-time websockets, native mobile app, historical
+archive/analytics.
 
 ## 2. Stack & deployment
 
 - **SvelteKit + TypeScript**, deployed to **Vercel** via `@sveltejs/adapter-vercel`.
   Server API routes are required to hold the admin secret and talk to KV/Blob.
 - **Tailwind CSS** for fast styling of the bracket and cards.
-- **Vercel KV (Upstash Redis)** — a single key `tournament` holds the entire state as one
-  JSON document. Note: "Vercel KV" is now provisioned through Vercel's **Upstash Redis**
-  marketplace integration; the `@vercel/kv` client and the single-key approach are unchanged.
+- **Vercel KV (Upstash Redis)** — each tournament is one JSON document under key
+  `tournament:{id}`; a `tournaments:index` key holds a lightweight array of summaries
+  (id, name, status, participantCount, registered count) for the list page. Note: "Vercel KV"
+  is now provisioned through Vercel's **Upstash Redis** marketplace integration; the
+  `@vercel/kv` client is unchanged.
 - **Vercel Blob** — hosts the player photos and returns public URLs stored in the JSON.
 - **Admin passphrase** stored in the `ADMIN_SECRET` env var. The organiser unlocks "edit
   mode" in the browser (secret kept in `localStorage`); write API routes verify it via an
@@ -27,14 +32,18 @@ mobile app, historical archive.
 
 ## 3. Access model
 
-- **Organiser (you):** unlocks edit mode with the passphrase; can create the tournament,
-  add players, record results, advance rounds.
-- **Spectators:** open the public URL, see the live bracket read-only. The page polls
-  `GET /api/tournament` roughly every 10s so results appear without a manual refresh.
+- **Organiser (admin):** unlocks edit mode with the passphrase; sees an "Ajouter un tournoi"
+  button on the list page and can create tournaments, add/edit players, record results, advance
+  rounds. Sees **all** tournaments, including those still in registration.
+- **Spectators:** browse read-only. On the list page they see **only tournaments whose
+  registration is complete** (all players in — status `active` or `complete`); in-registration
+  tournaments are hidden from them. The tournament view polls its `GET` endpoint roughly every
+  10s so results appear without a manual refresh.
 
 ## 4. Data model
 
-The entire state is one JSON document stored under KV key `tournament`.
+Each tournament is one JSON document stored under KV key `tournament:{id}` (see §2 for the
+`tournaments:index` list). The document shape:
 
 ```ts
 Tournament {
@@ -65,9 +74,10 @@ Player {
 
 Round {
   index: number            // 0 = first round
-  name: string             // "Round of 16" | "Quarterfinals" | "Semifinals" | "Final"
   matches: Match[]
 }
+// A round's display name is derived from its distance to the Final and rendered via the
+// French i18n map (§11) — not stored on the round.
 
 Match {
   id: string
@@ -120,7 +130,8 @@ edges — there is **no re-pairing** after round 1.
 - **`firstRoundByElo = false`** → players are **randomly shuffled into the N slots**. The
   bracket tree is then fixed; adjacent match winners meet in the next round.
 
-Round names derive from N: for 16 → Round of 16, Quarterfinals, Semifinals, Final.
+Round display names derive from each round's distance to the Final and are rendered in French
+via the i18n map (§11): for N=16 → 8es de finale, Quarts de finale, Demi-finales, Finale.
 
 **Advancing:** "Generate next round" materializes the next round's matches from the recorded
 winners of each pair of feeding matches. No randomness after the initial placement.
@@ -136,37 +147,54 @@ results, with the winner highlighted; connectors flow rightward toward the Final
 semifinal losers feed the optional 3rd-place match, shown near the Final. The champion is
 highlighted when the tournament completes.
 
+**Responsive behaviour (mobile-first):**
+- **Opening a tournament focuses on the current round** — the latest round that has undecided
+  matches (or the Final/champion once complete) — so the most relevant matchups are visible
+  first without scrolling.
+- **Mobile / narrow screens:** show **one round column at a time**, defaulting to the current
+  round, with previous/next round navigation (and a round selector). Match cards stack
+  vertically and fill the width.
+- **Wide screens:** show the full horizontal bracket tree with connectors, auto-scrolled to
+  centre the current round.
+
 ## 8. Pages & API
 
 **Pages (SvelteKit routes):**
-- `/` — public overview: tournament header + bracket tree. Read-only for spectators; shows
-  admin controls when edit mode is unlocked. Light polling (~10s) to refresh state.
-- Admin UI is surfaced inline on `/` (an "Unlock" button prompts for the passphrase). Panels:
-  create tournament, registration (add players + photo upload), record results, advance round,
-  3rd-place toggle, reset.
+- `/` — **home / landing page**: short intro and a prominent link to the tournaments list.
+- `/tournois` — **tournaments list**. Spectators see only registration-complete tournaments;
+  admins (edit mode unlocked) also see in-registration ones plus an **"Ajouter un tournoi"**
+  button. An "Unlock" control prompts for the passphrase to enter edit mode.
+- `/tournois/[id]` — **tournament view**: header + bracket tree, opened on the current round
+  (see §7). Read-only for spectators; in admin mode it also surfaces management panels:
+  registration (add/edit players + photo upload), record results, advance round, 3rd-place
+  toggle, edit tournament, delete. Light polling (~10s) to refresh state.
 
-**API routes** (write routes require `x-admin-secret`):
-- `GET   /api/tournament` — public; returns the JSON document.
-- `POST  /api/tournament` — create the tournament (admin); validates `participantCount` is a
+**API routes** — all tournament-scoped (write routes require `x-admin-secret`):
+- `GET    /api/tournaments` — list summaries; spectators receive only registration-complete
+  tournaments, admins receive all.
+- `POST   /api/tournaments` — create a tournament (admin); validates `participantCount` is a
   power of two.
-- `PATCH /api/tournament` — update editable tournament fields (name, dates, organiser,
+- `GET    /api/tournaments/:id` — public; returns the tournament JSON document.
+- `PATCH  /api/tournaments/:id` — update editable fields (name, dates, organiser,
   firstRoundByElo, participantCount) (admin).
-- `POST  /api/players` — add a player (admin).
-- `PATCH /api/players/:id` — update a player's fields (name, ELO, lichess username) (admin).
-- `POST  /api/players/:id/photo` — multipart upload of the player's photo to Vercel Blob at a
-  deterministic path (`players/{id}`); overwrites any previous photo and sets that player's
-  `photoUrl` directly. Returns the updated player (admin).
-- `POST  /api/rounds/generate` — build round 0 from registration, or materialize the next
-  round from winners (admin).
-- `POST  /api/matches/:id/games` — record/update game results for a match; recomputes winner
+- `DELETE /api/tournaments/:id` — delete the tournament and its index entry (admin).
+- `POST   /api/tournaments/:id/players` — add a player (admin).
+- `PATCH  /api/tournaments/:id/players/:pid` — update a player's fields (admin).
+- `POST   /api/tournaments/:id/players/:pid/photo` — multipart upload to Vercel Blob at a
+  deterministic path (`tournaments/{id}/players/{pid}`); overwrites any previous photo and sets
+  that player's `photoUrl` directly. Returns the updated player (admin).
+- `POST   /api/tournaments/:id/rounds/generate` — build round 0 from registration, or
+  materialize the next round from winners (admin).
+- `POST   /api/tournaments/:id/matches/:mid/games` — record/update game results; recomputes
+  winner (admin).
+- `POST   /api/tournaments/:id/thirdplace` — create the 3rd-place match from semifinal losers
   (admin).
-- `POST  /api/thirdplace` — create the 3rd-place match from semifinal losers (admin).
-- `POST  /api/tournament/reset` — clear state (admin).
 
 ## 9. Registration rules
 
 - Players are added one at a time (name, ELO, lichess username). A player exists first, then
-  their photo is uploaded via `POST /api/players/:id/photo`, which links it to the player.
+  their photo is uploaded via `POST /api/tournaments/:id/players/:pid/photo`, which links it to
+  the player.
   Oversized images may be downscaled client-side before upload to stay within free-tier limits.
 - Both the tournament and existing players remain editable during registration via the PATCH
   endpoints.
@@ -175,8 +203,20 @@ highlighted when the tournament completes.
 
 ## 10. Non-goals / accepted PoC limitations
 
-- No optimistic concurrency: the organiser is the sole writer, so last-write-wins on the
-  single KV key is acceptable.
+- No optimistic concurrency: the organiser is the sole writer, so last-write-wins on a
+  tournament's KV key is acceptable.
 - Passphrase auth is not hardened (no rate limiting/lockout); adequate for a private PoC.
 - No automated tests (per request); a few pure functions — `computeMatchWinner`, seeding
   order, next-round generation — are structured to be trivially testable later.
+
+## 11. Styling & language
+
+- **Responsive, mobile-first** with Tailwind. The bracket adapts per §7 (single focused round
+  column on mobile, full tree on wide screens); all pages, forms, and match cards must be
+  usable on a phone (stacked layouts, touch-friendly targets, no horizontal page overflow).
+- **All user-facing text is in French** — page titles, buttons ("Ajouter un tournoi",
+  "Ajouter un joueur", "Enregistrer les résultats", etc.), labels, round names ("8es de
+  finale"/"Quarts"/"Demi-finales"/"Finale"/"Petite finale"), status text, and error messages.
+  Strings are collected in a single `src/lib/i18n/fr.ts` module (keys in English, values in
+  French) so text stays consistent and out of component logic. Code identifiers, comments, and
+  this spec remain in English.
