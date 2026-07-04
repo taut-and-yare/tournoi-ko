@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte';
   import RoundColumn from './RoundColumn.svelte';
-  import { roundName, PETITE_FINALE } from '$lib/i18n/fr';
+  import { roundName, PETITE_FINALE, t } from '$lib/i18n/fr';
   import { currentRoundIndex } from '$lib/tournament/rounds';
   import type { Match, Tournament } from '$lib/types';
 
@@ -16,6 +16,11 @@
   // every poll of the same tournament with the same round count, which
   // would otherwise discard a spectator's manual ‹/› navigation.
   let focused = $state(currentRoundIndex(tournament.rounds));
+  // Clamp for array indexing: `focused` can briefly point past the end of
+  // `tournament.rounds` when navigating to a tournament with fewer rounds,
+  // since render effects run before the roundKey-driven $effect below
+  // corrects `focused`. Always index the array via this, never via `focused`.
+  let safeFocused = $derived(Math.min(focused, tournament.rounds.length - 1));
   let roundKey = $derived(`${tournament.id}:${tournament.rounds.length}`);
   $effect(() => {
     roundKey; // establish the dependency (id changes on navigation, count changes on new round)
@@ -28,7 +33,7 @@
 </script>
 
 {#if tournament.rounds.length === 0}
-  <p class="text-slate-500">Le tournoi n'a pas encore démarré.</p>
+  <p class="text-slate-500">{t.tournamentNotStarted}</p>
 {:else}
   <!-- Mobile: single focused round with navigation -->
   <div class="sm:hidden">
@@ -38,7 +43,7 @@
         disabled={focused === 0}
         class="rounded border border-slate-300 px-2 py-1 text-sm disabled:opacity-40"
       >‹</button>
-      <span class="text-sm font-medium">{titleFor(tournament.rounds[focused].matches.length)}</span>
+      <span class="text-sm font-medium">{titleFor(tournament.rounds[safeFocused].matches.length)}</span>
       <button
         onclick={() => (focused = Math.min(tournament.rounds.length - 1, focused + 1))}
         disabled={focused === tournament.rounds.length - 1}
@@ -46,8 +51,8 @@
       >›</button>
     </div>
     <RoundColumn
-      title={titleFor(tournament.rounds[focused].matches.length)}
-      matches={tournament.rounds[focused].matches}
+      title={titleFor(tournament.rounds[safeFocused].matches.length)}
+      matches={tournament.rounds[safeFocused].matches}
       players={tournament.players}
       {onMatchClick}
     />

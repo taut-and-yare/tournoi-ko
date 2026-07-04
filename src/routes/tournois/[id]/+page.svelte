@@ -67,6 +67,6 @@
   </div>
 
   {#if admin.isUnlocked}
-    <p class="mt-8 text-sm text-slate-400">Mode organisateur activé — panneaux de gestion à venir.</p>
+    <p class="mt-8 text-sm text-slate-400">{t.organiserModeNotice}</p>
   {/if}
 </main>

@@ -61,5 +61,7 @@ export const t = {
   unauthorized: 'Non autorisé.',
   resultWhiteWin: 'Victoire des Blancs',
   resultBlackWin: 'Victoire des Noirs',
-  resultDraw: 'Nulle'
+  resultDraw: 'Nulle',
+  tournamentNotStarted: 'Le tournoi n’a pas encore démarré.',
+  organiserModeNotice: 'Mode organisateur activé — panneaux de gestion à venir.'
 };
