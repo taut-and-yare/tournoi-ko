@@ -10,6 +10,15 @@
   let { data }: { data: { tournament: Tournament } } = $props();
   let tournament = $state<Tournament>(data.tournament);
 
+  // Resync when the loader hands us a different tournament (e.g. in-app
+  // navigation between /tournois/A and /tournois/B reuses this component
+  // instance, so `data` changes without `tournament` being reassigned).
+  $effect(() => {
+    if (data.tournament.id !== tournament.id) {
+      tournament = data.tournament;
+    }
+  });
+
   async function refresh() {
     try {
       tournament = await api.get(tournament.id);

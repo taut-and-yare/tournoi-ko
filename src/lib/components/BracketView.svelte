@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
   import RoundColumn from './RoundColumn.svelte';
   import { roundName, PETITE_FINALE } from '$lib/i18n/fr';
   import { currentRoundIndex } from '$lib/tournament/rounds';
@@ -10,9 +11,14 @@
   }: { tournament: Tournament; onMatchClick?: (m: Match) => void } = $props();
 
   // Mobile: show one round at a time, defaulting to the current round.
+  // Only re-focus when the number of rounds actually changes (a new round
+  // was generated) — not on every poll of the same round count, which
+  // would otherwise discard a spectator's manual ‹/› navigation.
   let focused = $state(currentRoundIndex(tournament.rounds));
+  let roundCount = $derived(tournament.rounds.length);
   $effect(() => {
-    focused = currentRoundIndex(tournament.rounds);
+    roundCount; // establish the dependency
+    focused = currentRoundIndex(untrack(() => tournament.rounds));
   });
 
   function titleFor(matchCount: number): string {
