@@ -1,7 +1,11 @@
 <script lang="ts">
   import type { Player } from '$lib/types';
 
-  let { player, isWinner = false }: { player: Player | undefined; isWinner?: boolean } = $props();
+  let {
+    player,
+    tournamentId,
+    isWinner = false
+  }: { player: Player | undefined; tournamentId: string; isWinner?: boolean } = $props();
 </script>
 
 <div class="flex items-center gap-2 py-1 {isWinner ? 'font-semibold text-emerald-700' : ''}">
@@ -12,6 +16,14 @@
       {player?.name?.[0] ?? '?'}
     </div>
   {/if}
-  <span class="truncate">{player?.name ?? '—'}</span>
+  {#if player}
+    <a
+      href="/tournois/{tournamentId}/joueurs/{player.id}"
+      onclick={(e) => e.stopPropagation()}
+      class="truncate hover:underline"
+    >{player.name}</a>
+  {:else}
+    <span class="truncate">—</span>
+  {/if}
   {#if player}<span class="ml-auto text-xs text-slate-400">{player.elo}</span>{/if}
 </div>

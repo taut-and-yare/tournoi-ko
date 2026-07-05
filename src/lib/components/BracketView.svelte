@@ -54,6 +54,7 @@
       title={titleFor(tournament.rounds[safeFocused].matches.length)}
       matches={tournament.rounds[safeFocused].matches}
       players={tournament.players}
+      tournamentId={tournament.id}
       {onMatchClick}
     />
   </div>
@@ -66,6 +67,7 @@
           title={titleFor(round.matches.length)}
           matches={round.matches}
           players={tournament.players}
+          tournamentId={tournament.id}
           {onMatchClick}
         />
       {/each}
@@ -78,6 +80,7 @@
         title={PETITE_FINALE}
         matches={[tournament.thirdPlaceMatch]}
         players={tournament.players}
+        tournamentId={tournament.id}
         {onMatchClick}
       />
     </div>
