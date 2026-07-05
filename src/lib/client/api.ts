@@ -38,6 +38,8 @@ export const api = {
     return req<Player>(`/api/tournaments/${id}/players/${pid}/photo`, { method: 'POST', body: form });
   },
   generate: (id: string) => req<Tournament>(`/api/tournaments/${id}/rounds/generate`, { method: 'POST', body: '{}' }),
+  remakePairings: (id: string) =>
+    req<Tournament>(`/api/tournaments/${id}/rounds/remake`, { method: 'POST', body: '{}' }),
   recordGames: (id: string, mid: string, games: Game[]) =>
     req<Tournament>(`/api/tournaments/${id}/matches/${mid}/games`, { method: 'POST', body: JSON.stringify({ games }) }),
   createThirdPlace: (id: string) =>
