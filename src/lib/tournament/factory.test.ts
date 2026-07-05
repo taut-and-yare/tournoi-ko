@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { createTournament, createPlayer, startTournament } from './factory';
+import { createTournament, createPlayer, startTournament, isNameTaken } from './factory';
+import type { TournamentSummary } from '../types';
 
 function baseInput() {
   return {
@@ -10,6 +11,10 @@ function baseInput() {
     firstRoundByElo: true,
     participantCount: 4
   };
+}
+
+function summary(overrides: Partial<TournamentSummary> = {}): TournamentSummary {
+  return { id: 't1', name: 'Open', status: 'registration', participantCount: 4, registered: 0, ...overrides };
 }
 
 describe('createTournament', () => {
@@ -45,5 +50,20 @@ describe('startTournament', () => {
   it('throws when player count does not match participantCount', () => {
     const t = createTournament(baseInput());
     expect(() => startTournament(t)).toThrow();
+  });
+});
+
+describe('isNameTaken', () => {
+  it('matches an exact name', () => {
+    expect(isNameTaken('Open', [summary({ name: 'Open' })])).toBe(true);
+  });
+  it('matches case-insensitively and trims whitespace', () => {
+    expect(isNameTaken('  open  ', [summary({ name: 'Open' })])).toBe(true);
+  });
+  it('returns false when no tournament matches', () => {
+    expect(isNameTaken('Closed', [summary({ name: 'Open' })])).toBe(false);
+  });
+  it('excludes the given id from the comparison', () => {
+    expect(isNameTaken('Open', [summary({ id: 't1', name: 'Open' })], 't1')).toBe(false);
   });
 });

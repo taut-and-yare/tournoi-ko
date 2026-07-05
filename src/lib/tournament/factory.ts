@@ -1,4 +1,4 @@
-import type { Player, Tournament } from '../types';
+import type { Player, Tournament, TournamentSummary } from '../types';
 import { isPowerOfTwo, buildFirstRoundSlots } from './seeding';
 import { createMatch } from './match';
 
@@ -31,6 +31,11 @@ export function createTournament(input: CreateTournamentInput): Tournament {
     createdAt: now,
     updatedAt: now
   };
+}
+
+export function isNameTaken(name: string, existing: TournamentSummary[], excludeId?: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return existing.some((s) => s.id !== excludeId && s.name.trim().toLowerCase() === normalized);
 }
 
 export interface CreatePlayerInput {

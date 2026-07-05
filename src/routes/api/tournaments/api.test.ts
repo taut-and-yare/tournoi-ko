@@ -58,4 +58,33 @@ describe('tournaments API', () => {
     expect(del.ok).toBe(true);
     await expect(itemGET({ params: { id: t.id }, request: new Request('http://x') } as never)).rejects.toMatchObject({ status: 404 });
   });
+
+  it('rejects creating a tournament whose name matches an existing one (case/whitespace-insensitive)', async () => {
+    await create(); // name: 'T'
+    await expect(
+      createPOST({ request: post({ ...valid, name: '  t  ' }) } as never)
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("rejects renaming a tournament to another existing tournament's name", async () => {
+    await create(); // name: 'T'
+    const b = await (await createPOST({ request: post({ ...valid, name: 'Other' }) } as never)).json();
+    const patchReq = new Request('http://x', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-admin-secret': 'secret' },
+      body: JSON.stringify({ name: 'T' })
+    });
+    await expect(itemPATCH({ params: { id: b.id }, request: patchReq } as never)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('allows renaming a tournament to its own current name', async () => {
+    const a = await create(); // name: 'T'
+    const patchReq = new Request('http://x', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json', 'x-admin-secret': 'secret' },
+      body: JSON.stringify({ name: 'T' })
+    });
+    const patched = await (await itemPATCH({ params: { id: a.id }, request: patchReq } as never)).json();
+    expect(patched.name).toBe('T');
+  });
 });
