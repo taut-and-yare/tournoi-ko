@@ -1,8 +1,9 @@
 <script lang="ts">
   import { api } from '$lib/client/api';
   import { t } from '$lib/i18n/fr';
+  import type { TournamentSummary } from '$lib/types';
 
-  let { onCreated }: { onCreated: () => void } = $props();
+  let { onCreated, tournaments }: { onCreated: () => void; tournaments: TournamentSummary[] } = $props();
 
   let name = $state('');
   let startDate = $state('');
@@ -10,15 +11,35 @@
   let organiser = $state('');
   let participantCount = $state(16);
   let firstRoundByElo = $state(false);
+  let sourceTournamentId = $state('');
   let error = $state('');
   let busy = $state(false);
+
+  let fullRosterTournaments = $derived(tournaments.filter((s) => s.registered === s.participantCount));
+
+  function onSourceChange() {
+    if (!sourceTournamentId) return;
+    const source = tournaments.find((s) => s.id === sourceTournamentId);
+    if (source) participantCount = source.registered;
+  }
 
   async function submit(e: Event) {
     e.preventDefault();
     error = '';
     busy = true;
     try {
-      await api.create({ name, startDate, endDate, organiser, participantCount, firstRoundByElo });
+      const created = await api.create({ name, startDate, endDate, organiser, participantCount, firstRoundByElo });
+      if (sourceTournamentId) {
+        const source = await api.get(sourceTournamentId);
+        for (const p of source.players) {
+          await api.addPlayer(created.id, {
+            name: p.name,
+            elo: p.elo,
+            lichessUsername: p.lichessUsername,
+            photoUrl: p.photoUrl
+          });
+        }
+      }
       onCreated();
     } catch (err) {
       error = (err as Error).message;
@@ -43,8 +64,16 @@
   <label class="block text-sm">{t.organiser}
     <input bind:value={organiser} class="mt-1 w-full rounded border border-slate-300 px-2 py-1" />
   </label>
+  <label class="block text-sm">{t.copyPlayersFrom}
+    <select bind:value={sourceTournamentId} onchange={onSourceChange} class="mt-1 w-full rounded border border-slate-300 px-2 py-1">
+      <option value="">{t.copyPlayersNone}</option>
+      {#each fullRosterTournaments as s (s.id)}
+        <option value={s.id}>{s.name} ({s.registered} joueurs)</option>
+      {/each}
+    </select>
+  </label>
   <label class="block text-sm">{t.participantCount}
-    <select bind:value={participantCount} class="mt-1 w-full rounded border border-slate-300 px-2 py-1">
+    <select bind:value={participantCount} disabled={!!sourceTournamentId} class="mt-1 w-full rounded border border-slate-300 px-2 py-1 disabled:bg-slate-100">
       <option value={2}>2</option>
       <option value={4}>4</option>
       <option value={8}>8</option>

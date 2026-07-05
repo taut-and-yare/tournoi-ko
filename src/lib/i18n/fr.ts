@@ -31,6 +31,8 @@ export const t = {
   endDate: 'Date de fin',
   organiser: 'Organisateur',
   firstRoundByElo: 'Premier tour par ELO (fort contre faible)',
+  copyPlayersFrom: 'Copier les joueurs de…',
+  copyPlayersNone: '— Aucun —',
   participantCount: 'Nombre de participants',
   mustBePowerOfTwo: 'Le nombre de participants doit être une puissance de deux (2, 4, 8, 16…).',
   players: 'Joueurs',

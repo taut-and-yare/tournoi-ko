@@ -39,7 +39,7 @@
   </div>
 
   {#if showForm}
-    <div class="mt-4"><CreateTournamentForm {onCreated} /></div>
+    <div class="mt-4"><CreateTournamentForm {onCreated} {tournaments} /></div>
   {/if}
 
   {#if tournaments.length === 0}
