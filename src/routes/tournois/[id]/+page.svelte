@@ -60,6 +60,11 @@
       !tournament.thirdPlaceMatch &&
       buildThirdPlaceMatch(tournament.rounds) !== null
   );
+  const canRemake = $derived(
+    tournament.status === 'active' &&
+      tournament.rounds.length === 1 &&
+      tournament.rounds[0].matches.every((m) => m.games.every((g) => g.result === null))
+  );
 
   async function advance() {
     error = '';
@@ -73,6 +78,23 @@
     error = '';
     try {
       tournament = await api.createThirdPlace(tournament.id);
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  async function remakePairings() {
+    if (!confirm(t.confirmRemakePairings)) return;
+    error = '';
+    try {
+      tournament = await api.remakePairings(tournament.id);
+    } catch (e) {
+      error = (e as Error).message;
+    }
+  }
+  async function toggleFirstRoundByElo(value: boolean) {
+    error = '';
+    try {
+      tournament = await api.patch(tournament.id, { firstRoundByElo: value });
     } catch (e) {
       error = (e as Error).message;
     }
@@ -117,6 +139,22 @@
   {/if}
 
   {#if admin.isUnlocked}
+    {#if canRemake}
+      <div class="mt-6 flex flex-wrap items-center gap-3">
+        <label class="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={tournament.firstRoundByElo}
+            onchange={(e) => toggleFirstRoundByElo((e.target as HTMLInputElement).checked)}
+          />
+          {t.firstRoundByElo}
+        </label>
+        <button
+          onclick={remakePairings}
+          class="rounded bg-slate-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-slate-700"
+        >{t.remakePairings}</button>
+      </div>
+    {/if}
     <div class="mt-6 flex flex-wrap gap-2">
       {#if canAdvance}
         <button onclick={advance} class="rounded bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-700">{t.advanceRound}</button>

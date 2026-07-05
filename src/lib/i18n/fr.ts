@@ -63,5 +63,7 @@ export const t = {
   resultBlackWin: 'Victoire des Noirs',
   resultDraw: 'Nulle',
   tournamentNotStarted: 'Le tournoi n’a pas encore démarré.',
-  organiserModeNotice: 'Mode organisateur activé — panneaux de gestion à venir.'
+  organiserModeNotice: 'Mode organisateur activé — panneaux de gestion à venir.',
+  remakePairings: 'Refaire les appariements',
+  confirmRemakePairings: 'Régénérer les appariements du premier tour ? Cette action est irréversible.'
 };
